@@ -5,7 +5,7 @@ services:
     build:
       context: ./init-data
     volumes:
-      - ./data:/data
+      - ./data:/app/data
       - ./common:/app/common
     env_file:
       - .env
