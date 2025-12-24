@@ -1,0 +1,58 @@
+services:
+  init-data:
+    container_name: rag-init-data
+    image: rag-init-data:latest
+    build:
+      context: ./init-data
+    volumes:
+      - ./data:/data
+      - ./common:/app/common
+    env_file:
+      - .env
+    networks:
+      - rag-network
+    command: ["python", "build_index.py"]
+    restart: "no"
+
+  rag-app:
+    container_name: rag-app
+    image: rag-app:latest
+    build:
+      context: .
+      dockerfile: rag-app/Dockerfile
+
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+      - ./common:/app/common
+    env_file:
+      - .env
+    ports:
+      - "8001:8001"
+    networks:
+      - rag-network
+    command: ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8001"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  telegram-bot:
+    container_name: rag-telegram-bot
+    image: rag-telegram-bot:latest
+    build:
+      context: ./telegram-bot
+    depends_on:
+      - rag-app
+    env_file:
+      - .env
+    networks:
+      - rag-network
+    command: ["python", "bot.py"]
+
+networks:
+  rag-network:
+    driver: bridge
