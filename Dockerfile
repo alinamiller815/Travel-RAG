@@ -1,27 +1,37 @@
+# Использование минимального  имейджа уменьшает размер образа, ускоряет скачивание и снижает поверхность атаки
 FROM python:3.10-slim
 
-# Системные зависимости
+# Установка только необходимых системных зависимостей (--no-install-recommends) 
+# и исключает лишние пакеты и делает образ легче
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    git \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Создание non-root пользователя
+RUN useradd -m appuser
 
 # рабочая директория
 WORKDIR /app
 
-COPY requirements.txt /app/requirements.txt
+# Копирование requirements.txt перед копированием всего проекта
+# позволяет Docker использовать кэш слоёв и не переустанавливать зависимости при изменении кода
+COPY COPY requirements.txt
 
 # устанавливаем зависимости
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . /app
-
-ENV PYTHONPATH=/app
+# Копируем только код
+COPY src ./src
 
 # Объявляем volume для данных RAG (индекс, чанки текстов, эмбеддинги и мета данные)
 VOLUME ["/app/data"]
 
+# Запуск приложения от non-root пользователя повышает безопасность 
+# контейнера и снижает риски при уязвимостях в приложении
+USER appuser
 
-CMD ["bash"] 
-# Для запуска — через docker run … python -m src.main
+# Использование ENTRYPOINT для основного процесса
+# гарантирует, что контейнер всегда запускает нужное приложение
+ENTRYPOINT ["python", "-m", "src.main"]
+CMD []

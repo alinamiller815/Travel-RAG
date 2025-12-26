@@ -1,20 +1,23 @@
-# не самый "легкий" образ/или latest
+# Использование полного образа без необходимости
 FROM python:3.10
 
-# Запускам все в одном слое
-# Системные зависимости в одну строку - сложно для чтения+могут быть проблемы с запуском
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential git curl && pip install --upgrade pip && mkdir /app
-
+# Все команды в одном RUN + не очищается apt cache
+RUN apt-get update && apt-get install -y \
+    build-essential git curl \
+    && pip install --upgrade pip \
+    && mkdir /app
 
 WORKDIR /app
 
-# копируем и requirements, и весь проект
-# Проект копируется раньше установки pip
+# Копируем весь проект ДО установки зависимостей
 COPY . .
 
-# Объявляем volume для данных RAG (индекс, чанки текстов, эмбеддинги и мета данные)
+# Обязательное volume
 VOLUME ["/app/data"]
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Нет --no-cache-dir
+RUN pip install -r requirements.txt
 
+# Нет entrypoint
+# Запуск от root
 CMD ["python", "-m", "src.main"]
